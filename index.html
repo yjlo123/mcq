@@ -1,0 +1,203 @@
+<!DOCTYPE HTML>
+
+<html>
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title></title>
+	<script src="./vue.min.js"></script>
+	<script src="./data.js"></script>
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+	<div id="app" class="container">
+		<div id="header" v-text="_('title__header')"></div>
+		<div class="total">
+			<div class="answered"><span v-text="_('lbl__answered')"></span>{{finishedCount}}/{{total_count}}</div>
+			<div class="rate"><span v-text="_('lbl__accuracy')"></span>{{correct}}/{{finishedCount}}</div>
+		</div>
+		<question :index="current+1" :text="current_q.Q"></question>
+		<div class="answers">
+			<answer-btn v-for="(option, index) in current_q.O" :index="index" :text="option" @clicked="selected(index)"></answer-btn>
+		</div>
+		<div class="popup" v-if="showPopup">
+			<div class="overlay" v-bind:class="[showWelcome?'welcome-bg':'']"></div>
+			<div class="popup-box">
+				<div class="result welcome" v-if="showWelcome" v-text="_('title__welcome')"></div>
+				<div class="result correct" v-if="isCorrect&&!isFinished&&!showWelcome" v-text="_('title__correct')"></div>
+				<div class="result wrong" v-if="!isCorrect&&!isFinished" v-text="_('title__wrong')"></div>
+				<div class="result" v-if="isFinished">
+					<span v-text="_('title_finished')"></span><br/>
+					<div style="font-size: 1rem;">
+						<span v-text="_('lbl__final_accuracy_{percentage}').replace('{percentage}', Math.round(correct/total_count*100))"></span><br/>
+						<span v-html="_('html__finished')"></span>
+					</div>
+				</div>
+				<div class="result-text" v-if="!isFinished" v-text="getPopupText()"></div>
+				<a class="next-btn btn" v-on:click="goNext" v-text="getPopBtnText()"></a>
+			</div>
+		</div>
+	</div>
+
+</body>
+
+<script>
+
+lang = {
+	'lbl__welcome': 'Hello!',
+	'lbl__answered': 'Answered: ',
+	'lbl__accuracy': 'Accuracy: ',
+	'lbl__correct': 'Good!',
+	'lbl__wrong': 'Awww',
+	'lbl__question_{number}': 'Question {number}:',
+	'lbl__final_accuracy_{percentage}': 'You answered {percentage}% of the questions correctly!',
+	'title__header': 'Test',
+	'title__welcome': 'Welcome to my test',
+	'title__wrong': 'Wrong',
+	'title__correct': 'Correct',
+	'title_finished': 'Finished',
+	'btn__start': 'Start',
+	'btn__next': 'Next',
+	'btn__finish': 'Finish',
+	'btn__restart': 'Restart',
+	'html__finished': '<span style="color:#8e44ad;font-size: 1.4rem;">Thank You!</span><br/>Click <span style="color:#d35400;">Restart</span> to try again!'
+}
+
+lang = {
+	'lbl__welcome': '你好！',
+	'lbl__answered': '已回答: ',
+	'lbl__accuracy': '准确率: ',
+	'lbl__correct': '厉害厉害！',
+	'lbl__wrong': '再接再厉！',
+	'lbl__question_{number}': '第{number}题:',
+	'lbl__final_accuracy_{percentage}': '你答对了 {percentage}% 的问题！',
+	'title__header': '测试',
+	'title__welcome': '欢迎来到我的测试',
+	'title__wrong': '错误',
+	'title__correct': '正确',
+	'title_finished': '完成',
+	'btn__start': '开始答题',
+	'btn__next': '下一题',
+	'btn__finish': '完成',
+	'btn__restart': '重新开始',
+	'html__finished': '<span style="color:#8e44ad;font-size: 1.4rem;">谢谢！</span><br/>点击 <span style="color:#d35400;">重新开始</span> 再答一次！'
+}
+
+function _(key){
+	return lang[key]
+}
+
+Vue.component('question', {
+	props: ['text', 'index'],
+	methods: {
+		content () {
+			return _('lbl__question_{number}').replace('{number}', this.index) + '<br/>' + this.text
+		}
+	},
+	template: '<div class="question" v-html="content()"></div>'
+})
+
+Vue.component('answer-btn', {
+	props: ['text', 'index'],
+	methods: {
+		clicked () {
+			this.$emit("clicked")
+		}
+	},
+	template: '<button class="answer-btn btn" v-on:click="clicked">{{ text }}</button>'
+})
+
+var app = new Vue({
+	el: '#app',
+	data: {
+		qa: qa['qa'],
+		current: 0,
+		correct: 0,
+		isCorrect: true,
+		isLast: false,
+		showPopup: true,
+		showWelcome: true,
+		isFinished: false
+	},
+	computed: {
+		current_q () {
+			return this.qa[this.current]
+		},
+		total_count () {
+			return this.qa.length
+		},
+		finishedCount () {
+			var finishedCurrent = this.showPopup ? 1 : 0
+			return this.isLast ? this.current + 1 : this.current + finishedCurrent
+		}
+	},
+	methods: {
+		init () {
+			this.current = 0
+			this.correct = 0
+			this.isCorrect = true
+			this.isLast = false
+			this.showPopup = true
+			this.showWelcome = true
+			this.isFinished = false
+		},
+		selected (index) {
+			if (index === this.current_q.A) {
+				/* correct */
+				this.correct++
+				this.isCorrect = true
+			} else {
+				/* wrong */
+				this.isCorrect = false
+			}
+			this.showPopup = true
+
+			/* last question */
+			if (this.current === this.total_count - 1) {
+				this.isLast = true
+			}
+		},
+		goNext () {
+			if (this.showWelcome) {
+				/* show welcome */
+				this.showWelcome = false
+				this.showPopup = false
+			} else if (this.isFinished) {
+				/* restart */
+				this.init()
+			} else if (this.isLast) {
+				/* show finished */
+				this.isFinished = true
+				return;
+			} else {
+				/* show next question */
+				this.current++
+				this.showPopup = false
+			}
+		},
+		getPopupText () {
+			if (this.showWelcome) {
+				return _('lbl__welcome')
+			} else if (this.isCorrect) {
+				return _('lbl__correct')
+			} else {
+				return _('lbl__wrong')
+			}
+		},
+		getPopBtnText () {
+			if (this.showWelcome) {
+				return _('btn__start')
+			} else if (this.isFinished) {
+				return _('btn__restart')
+			} else if (this.isLast) {
+				return _('btn__finish')
+			} else {
+				return _('btn__next')
+			}
+		}
+	}
+})
+</script>
+</html>
